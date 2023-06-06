@@ -1,3 +1,5 @@
+# Angepasstes Skript auf den Case RGL meets OpenAI
+
 ## This project no longer under active development
 ### It remains fully functional and maintenance is still completed
 
@@ -31,7 +33,7 @@ The html output is tested with Firefox and Chrome, but the current version does 
 
 Just copy the file into a directory with write permission, then run the script
 
-	./biblatex_check.py <-b input.bib> [-a input.aux] [-o output.html]
+	./biblatex_check.py <-b input.bib> [-a input.aux] [-o output.html] [-u unreadables.txt]
 
 If you provide the additional aux file (created when compiling a tex document), then the check of the bib file is restricted to only those entries that are really cited in the tex document.
 
@@ -43,6 +45,7 @@ Specify these when calling the script.
 - -a (--aux=file.aux) Set the input Aux File
 - -o (--output=file.html) Write results to the HTML Output File.
 - -v (--view) Open in Browser. Use together with -o.
+-- -u (--unreadables) Set the output file for unreadables
 - -N (--no-console) Do not print problems to console. An exit code is always returned.
 
 ## Help

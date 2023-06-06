@@ -119,6 +119,15 @@ parser.add_option(
     help="Do not print problems to console",
 )
 
+parser.add_option(
+    #file where the unreadables go
+    "-u",
+    "--unreadables",
+    dest="unreadables",
+    help="File to write unreadable entries to",
+    metavar="unreadables.txt",
+    )
+
 (options, args) = parser.parse_args()
 
 ### Backport Python 3 open(encoding="utf-8") to Python 2 ###
@@ -266,6 +275,9 @@ def generateEntryProblemsHTML(
 entriesIds = []
 entriesProblemsHTML = []
 
+# SH: List of entries that are not output due to missing brackets
+entriesNocurlies = []
+
 entryArticleId = ""
 entryAuthor = ""
 entryFields = []
@@ -277,10 +289,12 @@ entryType = ""
 
 counterFlawedNames = 0
 counterMissingCommas = 0
+counterMissingCurlies = 0
 counterMissingFields = 0
 counterNonUniqueId = 0
 counterWrongFieldNames = 0
 counterWrongTypes = 0
+counterInvalidEntryFields = 0
 
 lastLine = 0
 
@@ -289,13 +303,16 @@ lastLine = 0
 
 def handleNewEntryStarting(line):
     global entryArticleId, entryAuthor, entryFields, entryHTML, entryId, entryProblems, entryTitle, entryType
-    global counterMissingCommas, counterNonUniqueId
+    global counterMissingCommas, counterNonUniqueId, counterMissingCurlies
 
     entryFields = []
     entryProblems = []
-
-    entryId = line.split("{")[1].rstrip(",\n")
-
+    try:
+        entryId = line.split("{")[1].rstrip(",\n")
+    except IndexError:
+        entryProblems.append("missing curly brackets at '@" + entryId + "'")
+        entriesNocurlies.append(line)
+        counterMissingCurlies += 1
     if line[-1] != ",":
         entryProblems.append("missing comma at '@" + entryId + "' definition")
         counterMissingCommas += 1
@@ -312,7 +329,7 @@ def handleNewEntryStarting(line):
 
 def handleEntryEnding(lineNumber, line):
     global entryArticleId, entryAuthor, entryFields, entryHTML, entryId, entryProblems, entryTitle, entryType
-    global counterMissingFields, counterMissingCommas, removePunctuationMap
+    global counterMissingFields, counterMissingCommas, removePunctuationMap, counterInvalidEntryFields
     global entriesProblemsHTML
     global lastLine
 
@@ -336,18 +353,25 @@ def handleEntryEnding(lineNumber, line):
         entryRequiredFields = resolveAliasedRequiredFields(
             entryRequiredFields, requiredEntryFields
         )
+        try:
+            #print(entryType, entryRequiredFields)
+            for requiredEntryField in entryRequiredFields:
+                # support for author/editor syntax
+                requiredEntryField = requiredEntryField.split("/")
 
-        for requiredEntryField in entryRequiredFields:
-            # support for author/editor syntax
-            requiredEntryField = requiredEntryField.split("/")
-
-            # at least one the required fields is not found
-            if set(requiredEntryField).isdisjoint(entryFields):
-                entryProblems.append(
-                    "missing field '" + "/".join(requiredEntryField) + "'"
+                # at least one the required fields is not found
+                if set(requiredEntryField).isdisjoint(entryFields):
+                    entryProblems.append(
+                        "missing field '" + "/".join(requiredEntryField) + "'"
+                    )
+                    counterMissingFields += 1
+        # hier ein try except zum checken was hier abgeht
+        except TypeError:
+            entryProblems.append(
+                    "entry type '" + entryType + "' is not valid"
                 )
-                counterMissingFields += 1
-
+            counterInvalidEntryFields += 1
+            
     else:
         entryProblems = []
 
@@ -484,6 +508,8 @@ problemCount = (
     + counterWrongTypes
     + counterNonUniqueId
     + counterMissingCommas
+    + counterMissingCurlies
+    + counterInvalidEntryFields
 )
 
 # Write out our HTML file
@@ -767,6 +793,8 @@ $(document).ready(function(){
     html.write("<li># non-unique id: " + str(counterNonUniqueId) + "</li>")
     html.write("<li># wrong field: " + str(counterWrongFieldNames) + "</li>")
     html.write("<li># missing comma: " + str(counterMissingCommas) + "</li>")
+    html.write("<li># missing curlies: " + str(counterMissingCurlies) + "</li>")
+    html.write("<li># invalid entry field: " + str(counterInvalidEntryFields) + "</li>")
     html.write("</ul></ul></div>")
 
     entriesProblemsHTML.sort()
@@ -783,7 +811,13 @@ $(document).ready(function(){
         webbrowser.open(pathlib.Path(os.path.abspath(html.name)).as_uri())
 
     print("SUCCESS: Report {} has been generated".format(options.htmlOutput))
-
+    #write unreadables to unreadables file
+    with open(options.unreadables, 'w') as unreadables:
+        for entry in entriesNocurlies:
+            unreadables.write(entry + "\n")
+    print(f"wrote {len(entriesNocurlies)} unreadables to {options.unreadables}")
 if problemCount > 0:
     print("WARNING: Found {} problems.".format(problemCount))
     sys.exit(-1)
+
+
