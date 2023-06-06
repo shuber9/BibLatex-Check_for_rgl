@@ -45,7 +45,7 @@ Specify these when calling the script.
 - -a (--aux=file.aux) Set the input Aux File
 - -o (--output=file.html) Write results to the HTML Output File.
 - -v (--view) Open in Browser. Use together with -o.
--- -u (--unreadables) Set the output file for unreadables
+- -u (--unreadables) Set the output file for unreadables
 - -N (--no-console) Do not print problems to console. An exit code is always returned.
 
 ## Help
